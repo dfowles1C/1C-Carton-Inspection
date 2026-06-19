@@ -227,6 +227,19 @@
   #modal-close { float: right; background: none; border: none; font-size: 24px; cursor: pointer; color: #888; line-height: 1; }
 
   #results-count { font-size: 12px; color: #888; padding: 0 0 8px; font-weight: 500; }
+  .photo-upload-label {
+    display: flex; align-items: center; gap: 8px;
+    background: #f0f3fa; border: 1.5px dashed #b0bcd4;
+    border-radius: 10px; padding: 12px; cursor: pointer;
+    font-size: 14px; color: #225091; font-weight: 600;
+  }
+  .photo-upload-label:active { background: #dde3f5; }
+  .photo-upload-label input { display: none; }
+  .photo-thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .photo-thumbs img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1.5px solid #e0e4ef; }
+  .existing-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .existing-photos a img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1.5px solid #e0e4ef; }
+
 </style>
 </head>
 <body>
@@ -302,6 +315,8 @@ const PO_COL = "text_mm4d2dm0";
 const ARRIVAL_COL = "date_mm4dc3r1";
 const COMPLETED_COL = "date_mm4d79d2";
 const NOTES_COL = "long_text_mm4dvpwb";
+const CONTAINER_COL = "text_mm4fyekj";
+const PHOTOS_COL = "file_mm4dwvrg";
 
 const GROUP_MAP = { "5": "topics", "0": "group_title", "1": "group_mm4d36xf", "2": "group_mm4ddnka" };
 
@@ -401,12 +416,15 @@ function renderItems() {
 
   filtered.forEach(item => {
     const status = getStatusText(item);
+    const container = getCol(item, CONTAINER_COL);
     const vendor = getCol(item, VENDOR_COL);
     const po = getCol(item, PO_COL);
     const arrival = getCol(item, ARRIVAL_COL);
     const completedOn = getCol(item, COMPLETED_COL);
     const damage = getCol(item, DAMAGE_COL);
     const notes = getCol(item, NOTES_COL);
+    const photos = item.column_values.find(c => c.id === PHOTOS_COL);
+    const photoFiles = photos && photos.value ? (()=>{ try{ return JSON.parse(photos.value).files||[]; }catch(e){ return []; } })() : [];
 
     // Find current status index for select
     const statusIndexMap = {"Awaiting Date":"5","Scheduled":"0","Complete":"1","Missed":"2"};
@@ -421,12 +439,14 @@ function renderItems() {
         <div class="item-name">${esc(item.name)}</div>
         <span class="status-badge ${statusClass(status)}">${esc(status) || "—"}</span>
       </div>
+      ${fRow("Container #", container)}
       ${fRow("Vendor", vendor)}
       ${fRow("PO", po)}
       ${fRow("Est Arrival", arrival)}
       ${fRow("Damage Rating", damage)}
       ${fRow("Completed On", completedOn)}
       ${fRow("Notes", notes)}
+      ${photoFiles.length > 0 ? `<div class="field-row"><span class="field-label">Photos</span><div class="existing-photos">${photoFiles.map(f=>`<img src="${f.url||''}" onerror="this.style.display='none'">`).join('')}</div></div>` : ''}
       <button class="edit-toggle" data-id="${item.id}">✏️ Edit</button>
       <div class="edit-panel" id="edit-${item.id}">
         <div class="edit-field"><label>Status</label>
@@ -442,6 +462,9 @@ function renderItems() {
         </div>
         <div class="edit-field"><label>PO</label>
           <input type="text" data-col="${PO_COL}" data-type="text" value="${escA(po)}" placeholder="PO number">
+        </div>
+        <div class="edit-field"><label>Container Number</label>
+          <input type="text" data-col="${CONTAINER_COL}" data-type="text" value="${escA(container)}" placeholder="Container number">
         </div>
         <div class="edit-field"><label>Est Arrival</label>
           <input type="date" data-col="${ARRIVAL_COL}" data-type="date" value="${escA(arrival)}">
@@ -459,6 +482,13 @@ function renderItems() {
         </div>
         <div class="edit-field"><label>Notes</label>
           <textarea data-col="${NOTES_COL}" data-type="long_text" placeholder="Notes…">${esc(notes)}</textarea>
+        </div>
+        <div class="edit-field"><label>Add Photos</label>
+          <label class="photo-upload-label">
+            📷 Choose photos
+            <input type="file" class="photo-input" data-item-id="${item.id}" accept="image/*" multiple>
+          </label>
+          <div class="photo-thumbs" id="thumbs-${item.id}"></div>
         </div>
         <button class="save-btn" data-item-id="${item.id}">Save Changes</button>
         <div class="save-status" id="status-${item.id}"></div>
@@ -482,6 +512,19 @@ function renderItems() {
     });
   });
 
+
+  // Photo preview
+  list.querySelectorAll(".photo-input").forEach(input => {
+    input.addEventListener("change", () => {
+      const thumbs = document.getElementById("thumbs-" + input.dataset.itemId);
+      thumbs.innerHTML = "";
+      Array.from(input.files).forEach(file => {
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        thumbs.appendChild(img);
+      });
+    });
+  });
   list.querySelectorAll(".save-btn[data-item-id]").forEach(btn => {
     btn.addEventListener("click", () => saveItem(btn));
   });
@@ -502,6 +545,7 @@ async function saveItem(btn) {
       const val = el.value;
       if (type === "status") {
         if (val !== "") colValues[col] = JSON.stringify({ index: parseInt(val) });
+        // if empty, skip (leave as-is)
       } else if (type === "date") {
         colValues[col] = val ? JSON.stringify({ date: val }) : "null";
       } else if (type === "long_text") {
@@ -518,6 +562,23 @@ async function saveItem(btn) {
         column_values: ${colValStr}
       ) { id }
     }`);
+    // Upload any selected photos
+    const photoInput = panel.querySelector(".photo-input");
+    if (photoInput && photoInput.files.length > 0) {
+      statusEl.textContent = "Uploading photos…";
+      for (const file of photoInput.files) {
+        try {
+          const formData = new FormData();
+          formData.append("query", `mutation { add_file_to_column(item_id: ${itemId}, column_id: "${PHOTOS_COL}", file: "file") { id } }`);
+          formData.append("variables[file]", file, file.name);
+          await fetch("https://api.monday.com/v2/file", {
+            method: "POST",
+            headers: { "Authorization": TOKEN },
+            body: formData
+          });
+        } catch(e) { console.warn("Photo upload error:", e); }
+      }
+    }
     statusEl.textContent = "✓ Saved!";
     statusEl.className = "save-status";
     setTimeout(() => loadItems(), 1200);
