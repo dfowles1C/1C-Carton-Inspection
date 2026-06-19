@@ -484,8 +484,12 @@ function renderItems() {
           <textarea data-col="${NOTES_COL}" data-type="long_text" placeholder="Notes…">${esc(notes)}</textarea>
         </div>
         <div class="edit-field"><label>Add Photos</label>
+          <label class="photo-upload-label" style="margin-bottom:8px;">
+            📷 Take Photo
+            <input type="file" class="photo-input" data-item-id="${item.id}" accept="image/*" capture="environment">
+          </label>
           <label class="photo-upload-label">
-            📷 Choose photos
+            🖼️ Choose from Library
             <input type="file" class="photo-input" data-item-id="${item.id}" accept="image/*" multiple>
           </label>
           <div class="photo-thumbs" id="thumbs-${item.id}"></div>
@@ -563,10 +567,13 @@ async function saveItem(btn) {
       ) { id }
     }`);
     // Upload any selected photos
-    const photoInput = panel.querySelector(".photo-input");
-    if (photoInput && photoInput.files.length > 0) {
+    const allFiles = [];
+    panel.querySelectorAll(".photo-input").forEach(input => {
+      Array.from(input.files).forEach(f => allFiles.push(f));
+    });
+    if (allFiles.length > 0) {
       statusEl.textContent = "Uploading photos…";
-      for (const file of photoInput.files) {
+      for (const file of allFiles) {
         try {
           const formData = new FormData();
           formData.append("query", `mutation { add_file_to_column(item_id: ${itemId}, column_id: "${PHOTOS_COL}", file: "file") { id } }`);
