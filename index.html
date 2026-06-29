@@ -450,7 +450,7 @@ function renderItems() {
       <button class="edit-toggle" data-id="${item.id}">✏️ Edit</button>
       <div class="edit-panel" id="edit-${item.id}">
         <div class="edit-field"><label>Status</label>
-          <select data-col="${STATUS_COL}" data-type="status">
+          <select data-col="${STATUS_COL}" data-type="status" data-original="${sIdx}">
             <option value="5" ${sIdx==="5"?"selected":""}>Awaiting Date</option>
             <option value="0" ${sIdx==="0"?"selected":""}>Scheduled</option>
             <option value="1" ${sIdx==="1"?"selected":""}>Complete</option>
@@ -458,19 +458,19 @@ function renderItems() {
           </select>
         </div>
         <div class="edit-field"><label>Vendor</label>
-          <input type="text" data-col="${VENDOR_COL}" data-type="text" value="${escA(vendor)}" placeholder="Vendor name">
+          <input type="text" data-col="${VENDOR_COL}" data-type="text" data-original="${escA(vendor)}" value="${escA(vendor)}" placeholder="Vendor name">
         </div>
         <div class="edit-field"><label>PO</label>
-          <input type="text" data-col="${PO_COL}" data-type="text" value="${escA(po)}" placeholder="PO number">
+          <input type="text" data-col="${PO_COL}" data-type="text" data-original="${escA(po)}" value="${escA(po)}" placeholder="PO number">
         </div>
         <div class="edit-field"><label>Container Number</label>
-          <input type="text" data-col="${CONTAINER_COL}" data-type="text" value="${escA(container)}" placeholder="Container number">
+          <input type="text" data-col="${CONTAINER_COL}" data-type="text" data-original="${escA(container)}" value="${escA(container)}" placeholder="Container number">
         </div>
         <div class="edit-field"><label>Est Arrival</label>
-          <input type="date" data-col="${ARRIVAL_COL}" data-type="date" value="${escA(arrival)}">
+          <input type="date" data-col="${ARRIVAL_COL}" data-type="date" data-original="${escA(arrival)}" value="${escA(arrival)}">
         </div>
         <div class="edit-field"><label>Damage Rating</label>
-          <select data-col="${DAMAGE_COL}" data-type="status">
+          <select data-col="${DAMAGE_COL}" data-type="status" data-original="${dIdx}">
             <option value="">— not set —</option>
             <option value="1" ${dIdx==="1"?"selected":""}>None</option>
             <option value="0" ${dIdx==="0"?"selected":""}>Minor</option>
@@ -478,10 +478,10 @@ function renderItems() {
           </select>
         </div>
         <div class="edit-field"><label>Completed On</label>
-          <input type="date" data-col="${COMPLETED_COL}" data-type="date" value="${escA(completedOn)}">
+          <input type="date" data-col="${COMPLETED_COL}" data-type="date" data-original="${escA(completedOn)}" value="${escA(completedOn)}">
         </div>
         <div class="edit-field"><label>Notes</label>
-          <textarea data-col="${NOTES_COL}" data-type="long_text" placeholder="Notes…">${esc(notes)}</textarea>
+          <textarea data-col="${NOTES_COL}" data-type="long_text" data-original="${escA(notes)}" placeholder="Notes…">${esc(notes)}</textarea>
         </div>
         <div class="edit-field"><label>Add Photos</label>
           <label class="photo-upload-label" style="margin-bottom:8px;">
@@ -547,6 +547,9 @@ async function saveItem(btn) {
       const col = el.dataset.col;
       const type = el.dataset.type;
       const val = el.value;
+      const original = el.dataset.original ?? "";
+      // Only send fields the user actually changed
+      if (val === original) return;
       if (type === "status") {
         if (val !== "") colValues[col] = JSON.stringify({ index: parseInt(val) });
         // if empty, skip (leave as-is)
