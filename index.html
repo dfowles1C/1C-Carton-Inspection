@@ -151,6 +151,7 @@
 
   .edit-field { margin-bottom: 12px; }
   .edit-field label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 5px; }
+  .current-val { font-size: 12px; color: #888; margin-bottom: 5px; }
 
   .edit-field select,
   .edit-field input[type="text"],
@@ -450,11 +451,13 @@ function renderItems() {
       <button class="edit-toggle" data-id="${item.id}">✏️ Edit</button>
       <div class="edit-panel" id="edit-${item.id}">
         <div class="edit-field"><label>Status</label>
-          <select data-col="${STATUS_COL}" data-type="status" data-original="${sIdx}">
-            <option value="5" ${sIdx==="5"?"selected":""}>Awaiting Date</option>
-            <option value="0" ${sIdx==="0"?"selected":""}>Scheduled</option>
-            <option value="1" ${sIdx==="1"?"selected":""}>Complete</option>
-            <option value="2" ${sIdx==="2"?"selected":""}>Missed</option>
+          <div class="current-val">Current: <strong>${esc(status) || "—"}</strong></div>
+          <select data-col="${STATUS_COL}" data-type="status">
+            <option value="">— no change —</option>
+            <option value="5">Awaiting Date</option>
+            <option value="0">Scheduled</option>
+            <option value="1">Complete</option>
+            <option value="2">Missed</option>
           </select>
         </div>
         <div class="edit-field"><label>Vendor</label>
@@ -470,11 +473,12 @@ function renderItems() {
           <input type="date" data-col="${ARRIVAL_COL}" data-type="date" data-original="${escA(arrival)}" value="${escA(arrival)}">
         </div>
         <div class="edit-field"><label>Damage Rating</label>
-          <select data-col="${DAMAGE_COL}" data-type="status" data-original="${dIdx}">
-            <option value="">— not set —</option>
-            <option value="1" ${dIdx==="1"?"selected":""}>None</option>
-            <option value="0" ${dIdx==="0"?"selected":""}>Minor</option>
-            <option value="2" ${dIdx==="2"?"selected":""}>Major</option>
+          <div class="current-val">Current: <strong>${esc(damage) || "—"}</strong></div>
+          <select data-col="${DAMAGE_COL}" data-type="status">
+            <option value="">— no change —</option>
+            <option value="1">None</option>
+            <option value="0">Minor</option>
+            <option value="2">Major</option>
           </select>
         </div>
         <div class="edit-field"><label>Completed On</label>
@@ -547,13 +551,10 @@ async function saveItem(btn) {
       const col = el.dataset.col;
       const type = el.dataset.type;
       const val = el.value;
-      const original = el.dataset.original ?? "";
-      // Only send fields the user actually changed
-      if (val === original) return;
       if (type === "status") {
+        // Only send if user explicitly chose a value (not "— no change —")
         const idx = parseInt(val);
         if (val !== "" && !isNaN(idx)) colValues[col] = JSON.stringify({ index: idx });
-        // if empty or unparseable, skip (leave as-is)
       } else if (type === "date") {
         colValues[col] = val ? JSON.stringify({ date: val }) : "null";
       } else if (type === "long_text") {
