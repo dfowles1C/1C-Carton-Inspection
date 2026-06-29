@@ -551,8 +551,9 @@ async function saveItem(btn) {
       // Only send fields the user actually changed
       if (val === original) return;
       if (type === "status") {
-        if (val !== "") colValues[col] = JSON.stringify({ index: parseInt(val) });
-        // if empty, skip (leave as-is)
+        const idx = parseInt(val);
+        if (val !== "" && !isNaN(idx)) colValues[col] = JSON.stringify({ index: idx });
+        // if empty or unparseable, skip (leave as-is)
       } else if (type === "date") {
         colValues[col] = val ? JSON.stringify({ date: val }) : "null";
       } else if (type === "long_text") {
